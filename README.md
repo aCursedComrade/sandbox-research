@@ -1,2 +1,2 @@
 # sandbox-research
-Research on windows internals and sandbox concepts
+This repository contains my study on Windows internals and my research on sandbox concepts with proof-of-concepts dedicated to Windows.
