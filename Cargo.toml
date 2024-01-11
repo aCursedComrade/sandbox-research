@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = [
+    "grpc-demo"
+]
+
+[workspace.package]
+edition = "2021"
+publish = false
+repository = "https://github.com/aCursedComrade/sandbox-research"
