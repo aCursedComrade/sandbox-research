@@ -1,10 +1,20 @@
 [workspace]
 resolver = "2"
 members = [
-    "grpc-demo"
+    "grpc-demo",
+    "kmdf/driver",
+    "kmdf/exe"
 ]
 
 [workspace.package]
 edition = "2021"
 publish = false
 repository = "https://github.com/aCursedComrade/sandbox-research"
+license = "MIT"
+
+[workspace.dependencies]
+wdk = "0.1.0"
+wdk-alloc = "0.1.0"
+wdk-build = "0.1.0"
+wdk-panic = "0.1.0"
+wdk-sys = "0.1.0"
