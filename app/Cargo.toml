@@ -1,0 +1,10 @@
+[package]
+name = "app"
+version = "0.0.1"
+description = "User-mode application to interact with the sandbox"
+edition.workspace = true
+publish.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]

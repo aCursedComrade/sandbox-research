@@ -1,9 +1,7 @@
 [workspace]
 resolver = "2"
-members = [
-    "grpc-demo",
-    "kmdf/driver",
-    "kmdf/exe"
+members = [ "app",
+    "jail"
 ]
 
 [workspace.package]
@@ -13,8 +11,8 @@ repository = "https://github.com/aCursedComrade/sandbox-research"
 license = "MIT"
 
 [workspace.dependencies]
-wdk = "0.1.0"
-wdk-alloc = "0.1.0"
-wdk-build = "0.1.0"
-wdk-panic = "0.1.0"
-wdk-sys = "0.1.0"
+wdk = "0.2.0"
+wdk-alloc = "0.2.0"
+wdk-build = "0.2.0"
+wdk-panic = "0.2.0"
+wdk-sys = "0.2.0"
