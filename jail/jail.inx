@@ -1,1 +1,66 @@
 ; Driver information: jail.sys
+; https://learn.microsoft.com/en-us/windows-hardware/drivers/install/overview-of-inf-files
+; Sample config is written targetting x86_64/amd64 architecture
+; ========
+
+[Version]
+Signature = "$WINDOWS NT$"
+Class = SampleSandbox
+; guidgen.exe
+ClassGuid = {204CE9A7-88A2-433C-A068-9518EA308CF4}
+Provider = %ProviderString%
+PnpLockDown = 1
+
+[DestinationDirs]
+DefaultDestination = 13
+
+[SourceDiskNames.amd64]
+1 = %DiskName%,,,""
+
+[SourceDiskFiles.amd64]
+jail.sys = 1,,
+
+; Device class setup ========
+
+[ClassInstall32.NTamd64]
+AddReg = DevClassReg
+
+[DevClassReg]
+HKR,,,0,%ClassName%
+HKR,,Icon,,-5
+
+; Driver files setup ========
+
+[Manufacturer]
+%StdMfg% = Standard,NTamd64
+
+[Standard.NTamd64]
+%DeviceDesc% = JailDevice, root\SampleSandbox
+
+[JailDevice.NTamd64]
+CopyFiles = DriverFiles
+
+[DriverFiles]
+jail.sys
+
+; Service setup ========
+
+[JailDevice.NTamd64.Service]
+AddService = SampleSandbox,2,SampleSandboxInfo
+
+[SampleSandboxInfo]
+DisplayName = %ServiceDesc%
+ServiceType = 1         ; Kernel-mode service
+StartType = 3           ; start on-demand
+ErrorControl = 1        ; normal error level
+ServiceBinary = %13%\jail.sys
+
+; String keys ========
+
+[Strings]
+ClassName = SampleSandbox
+ProviderString = "aCursedComrade"
+DeviceDesc = "Driver for SampleSandbox"
+ServiceDesc = "Service for SampleSandbox driver"
+DiskName = "SampleSandbox Installation Disc"
+StdMfg = "(Standard system devices)"

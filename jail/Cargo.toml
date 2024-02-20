@@ -12,14 +12,6 @@ crate-type = ["cdylib"]
 
 [package.metadata.wdk]
 
-[profile.dev]
-panic = "abort"
-lto = true
-
-[profile.release]
-panic = "abort"
-lto = true
-
 [dependencies]
 wdk.workspace = true
 wdk-alloc.workspace = true

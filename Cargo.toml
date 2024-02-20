@@ -1,7 +1,8 @@
 [workspace]
 resolver = "2"
 members = [ "app",
-    "jail"
+    "jail",
+    "app"
 ]
 
 [workspace.package]
@@ -9,6 +10,14 @@ edition = "2021"
 publish = false
 repository = "https://github.com/aCursedComrade/sandbox-research"
 license = "MIT"
+
+[profile.dev]
+panic = "abort"
+lto = true
+
+[profile.release]
+panic = "abort"
+lto = true
 
 [workspace.dependencies]
 wdk = "0.2.0"

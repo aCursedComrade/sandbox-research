@@ -4,6 +4,7 @@ extend = "target/rust-driver-makefile.toml"
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 
 [config]
+default_to_workspace = false
 load_script = '''
 #!@rust
 //! ```cargo
@@ -15,7 +16,22 @@ load_script = '''
 wdk_build::cargo_make::load_rust_driver_makefile()?
 '''
 
-[tasks.default]
-clear = true
+[tasks.mkapp]
+description = "Builds the non-driver crate(s) in the workspace"
+command = "cargo"
+args = ["build", "-p", "app"]
+
+[tasks.mkdriver]
+# wdk needs to look through all crates in the workspace to see if its driver.
+# driver is detected by having [package.metadata.wdk] section being present in
+# the Cargo.toml of the crate containing the driver.
+workspace = true
+description = "Builds the driver(s) in the workspace"
 # "package-driver-flow" is defined in `wdk-build` crate
-dependencies = ["build", "package-driver-flow"]
+dependencies = ["package-driver-flow"]
+
+[tasks.default]
+# Dont do anything in the default task
+clear = true
+command = "cmd"
+args = ["/c", "echo No default tasks is defined, look at Makefile.toml for available tasks"]
