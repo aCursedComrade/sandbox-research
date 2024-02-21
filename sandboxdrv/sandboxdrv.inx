@@ -7,18 +7,17 @@
 [Version]
 Signature = "$WINDOWS NT$"
 Class = SampleSandbox
-; guidgen.exe
 ClassGuid = {204CE9A7-88A2-433C-A068-9518EA308CF4}
 Provider = %ProviderString%
 PnpLockDown = 1
 
 [DestinationDirs]
-DefaultDestination = 13
+DefaultDestDir = 13
 
-[SourceDiskNames.AMD64]
+[SourceDisksNames.AMD64]
 1 = %DiskName%,,,""
 
-[SourceDiskFiles.AMD64]
+[SourceDisksFiles.AMD64]
 sandboxdrv.sys = 1,,
 
 ; Device class setup ========
@@ -46,7 +45,7 @@ sandboxdrv.sys
 
 ; Service setup ========
 
-[SampleSandboxDevice.NTAMD64.Service]
+[SampleSandboxDevice.NTAMD64.Services]
 AddService = SampleSandbox,2,SampleSandboxService
 
 [SampleSandboxService]
