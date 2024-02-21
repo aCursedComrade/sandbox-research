@@ -17,7 +17,7 @@ wdk_build::cargo_make::load_rust_driver_makefile()?
 '''
 
 [tasks.mkapp]
-description = "Builds the non-driver crate(s) in the workspace"
+description = "Builds the `app` crate"
 command = "cargo"
 args = ["build", "-p", "app"]
 

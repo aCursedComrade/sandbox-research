@@ -1,0 +1,67 @@
+; Driver information: sandboxdrv.sys
+; Docs: https://learn.microsoft.com/en-us/windows-hardware/drivers/install/overview-of-inf-files
+; Sample config is written targetting x86_64/AMD64 architecture. Rust wdk requires the file
+; name of *this* file and the driver to be the same as the package name.
+; ========
+
+[Version]
+Signature = "$WINDOWS NT$"
+Class = SampleSandbox
+; guidgen.exe
+ClassGuid = {204CE9A7-88A2-433C-A068-9518EA308CF4}
+Provider = %ProviderString%
+PnpLockDown = 1
+
+[DestinationDirs]
+DefaultDestination = 13
+
+[SourceDiskNames.AMD64]
+1 = %DiskName%,,,""
+
+[SourceDiskFiles.AMD64]
+sandboxdrv.sys = 1,,
+
+; Device class setup ========
+
+[ClassInstall32.NTAMD64]
+AddReg = SampleSandboxReg
+
+[SampleSandboxReg]
+HKR,,,0,%ClassName%
+HKR,,Icon,,-5
+
+; Driver files setup ========
+
+[Manufacturer]
+%StdMfg% = Standard,NTAMD64
+
+[Standard.NTAMD64]
+%DeviceDesc% = SampleSandboxDevice,root\SampleSandbox
+
+[SampleSandboxDevice.NTAMD64]
+CopyFiles = SampleSandboxFiles
+
+[SampleSandboxFiles]
+sandboxdrv.sys
+
+; Service setup ========
+
+[SampleSandboxDevice.NTAMD64.Service]
+AddService = SampleSandbox,2,SampleSandboxService
+
+[SampleSandboxService]
+DisplayName = %ServiceDesc%
+ServiceType = 1         ; kernel-mode service
+StartType = 3           ; start on-demand
+ErrorControl = 1        ; normal error level
+ServiceBinary = %13%\sandboxdrv.sys
+
+; String keys ========
+
+[Strings]
+ClassName = "SampleSandbox"
+ProviderString = "aCursedComrade"
+DeviceDesc = "Driver for SampleSandbox"
+ServiceDesc = "Service for SampleSandbox driver"
+DiskName = "SampleSandbox Installation Disk"
+StdMfg = "(Standard system devices)"

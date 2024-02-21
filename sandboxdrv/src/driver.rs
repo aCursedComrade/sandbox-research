@@ -6,7 +6,7 @@ pub unsafe extern "C" fn driver_entry(
     driver: &mut DRIVER_OBJECT,
     _device_path: PCUNICODE_STRING,
 ) -> NTSTATUS {
-    println!("jail.sys: Hello world!");
+    println!("sandboxdrv.sys: Hello world!");
 
     driver.DriverUnload = Some(driver_exit);
 
@@ -14,5 +14,5 @@ pub unsafe extern "C" fn driver_entry(
 }
 
 pub unsafe extern "C" fn driver_exit(_driver: *mut DRIVER_OBJECT) {
-    println!("jail.sys: Buh bye!");
+    println!("sandboxdrv.sys: Buh bye!");
 }
