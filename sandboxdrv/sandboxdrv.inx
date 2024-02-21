@@ -59,8 +59,8 @@ ServiceBinary = %13%\sandboxdrv.sys
 
 [Strings]
 ClassName = "SampleSandbox"
-ProviderString = "aCursedComrade"
-DeviceDesc = "Driver for SampleSandbox"
-ServiceDesc = "Service for SampleSandbox driver"
+ProviderString = "aCursedComrade Inc."
+DeviceDesc = "Example driver for SampleSandbox"
+ServiceDesc = "Example service for SampleSandbox"
 DiskName = "SampleSandbox Installation Disk"
-StdMfg = "(Standard system devices)"
+StdMfg = "aCursedComrade"
