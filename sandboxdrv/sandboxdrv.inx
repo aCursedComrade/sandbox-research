@@ -1,7 +1,7 @@
 ; Driver information: sandboxdrv.sys
-; Docs: https://learn.microsoft.com/en-us/windows-hardware/drivers/install/overview-of-inf-files
-; Sample config is written targetting x86_64/AMD64 architecture. Rust wdk requires the file
-; name of *this* file and the driver to be the same as the package name.
+; WDK reference: https://learn.microsoft.com/en-us/windows-hardware/drivers/install/overview-of-inf-files
+; Addtional read: https://azius.com/inf-files-bear/
+; Rust wdk requires the file name of *this* file and the driver to be the same as the package name.
 ; ========
 
 [Version]
@@ -9,20 +9,21 @@ Signature = "$WINDOWS NT$"
 Class = SampleSandbox
 ClassGuid = {204CE9A7-88A2-433C-A068-9518EA308CF4}
 Provider = %ProviderString%
+CatalogFile = sandboxdrv.cat
 PnpLockDown = 1
 
 [DestinationDirs]
 DefaultDestDir = 13
 
-[SourceDisksNames.AMD64]
+[SourceDisksNames]
 1 = %DiskName%,,,""
 
-[SourceDisksFiles.AMD64]
+[SourceDisksFiles]
 sandboxdrv.sys = 1,,
 
 ; Device class setup ========
 
-[ClassInstall32.NTAMD64]
+[ClassInstall32]
 AddReg = SampleSandboxReg
 
 [SampleSandboxReg]
@@ -32,12 +33,12 @@ HKR,,Icon,,-5
 ; Driver files setup ========
 
 [Manufacturer]
-%StdMfg% = Standard,NTAMD64
+%StdMfg% = Standard,NT$ARCH$.10.0
 
-[Standard.NTAMD64]
-%DeviceDesc% = SampleSandboxDevice,root\SampleSandbox
+[Standard.NT$ARCH$.10.0]
+%DeviceDesc% = SampleSandboxDevice,Root\%ClassName%
 
-[SampleSandboxDevice.NTAMD64]
+[SampleSandboxDevice.NT$ARCH$]
 CopyFiles = SampleSandboxFiles
 
 [SampleSandboxFiles]
@@ -45,7 +46,7 @@ sandboxdrv.sys
 
 ; Service setup ========
 
-[SampleSandboxDevice.NTAMD64.Services]
+[SampleSandboxDevice.NT$ARCH$.Services]
 AddService = SampleSandbox,2,SampleSandboxService
 
 [SampleSandboxService]
