@@ -1,4 +1,4 @@
-; Driver information: sandboxdrv.sys
+; Driver information: driver.sys
 ; WDK reference: https://learn.microsoft.com/en-us/windows-hardware/drivers/install/overview-of-inf-files
 ; Addtional read: https://azius.com/inf-files-bear/
 ; Rust wdk requires the file name of *this* file and the driver to be the same as the package name.
@@ -6,10 +6,9 @@
 
 [Version]
 Signature = "$WINDOWS NT$"
-Class = SampleSandbox
+Class = %ClassName%
 ClassGuid = {204CE9A7-88A2-433C-A068-9518EA308CF4}
 Provider = %ProviderString%
-CatalogFile = sandboxdrv.cat
 PnpLockDown = 1
 
 [DestinationDirs]
@@ -19,7 +18,7 @@ DefaultDestDir = 13
 1 = %DiskName%,,,""
 
 [SourceDisksFiles]
-sandboxdrv.sys = 1,,
+driver.sys = 1,,
 
 ; Device class setup ========
 
@@ -36,13 +35,13 @@ HKR,,Icon,,-5
 %StdMfg% = Standard,NT$ARCH$.10.0
 
 [Standard.NT$ARCH$.10.0]
-%DeviceDesc% = SampleSandboxDevice,Root\%ClassName%
+%DeviceDesc% = SampleSandboxDevice,root\%ClassName%
 
 [SampleSandboxDevice.NT$ARCH$]
 CopyFiles = SampleSandboxFiles
 
 [SampleSandboxFiles]
-sandboxdrv.sys
+driver.sys
 
 ; Service setup ========
 
@@ -54,14 +53,14 @@ DisplayName = %ServiceDesc%
 ServiceType = 1         ; kernel-mode service
 StartType = 3           ; start on-demand
 ErrorControl = 1        ; normal error level
-ServiceBinary = %13%\sandboxdrv.sys
+ServiceBinary = %13%\driver.sys
 
 ; String keys ========
 
 [Strings]
 ClassName = "SampleSandbox"
 ProviderString = "aCursedComrade Inc."
-DeviceDesc = "Example driver for SampleSandbox"
-ServiceDesc = "Example service for SampleSandbox"
+DeviceDesc = "SampleSandboxDriver"
+ServiceDesc = "SampleSandboxService"
 DiskName = "SampleSandbox Installation Disk"
 StdMfg = "aCursedComrade"

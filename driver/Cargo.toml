@@ -1,5 +1,5 @@
 [package]
-name = "sandboxdrv"
+name = "driver"
 version = "0.0.1"
 description = "Driver that is used to implement application sandbox"
 edition.workspace = true

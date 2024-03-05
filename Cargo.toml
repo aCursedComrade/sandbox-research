@@ -1,9 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "app",
-    "sandboxdrv",
-    "app"
-]
+members = ["frontend", "service", "driver"]
 
 [workspace.package]
 edition = "2021"
@@ -11,17 +8,23 @@ publish = false
 repository = "https://github.com/aCursedComrade/sandbox-research"
 license = "MIT"
 
-[profile.dev]
-panic = "abort"
-lto = true
-
-[profile.release]
-panic = "abort"
-lto = true
-
 [workspace.dependencies]
 wdk = "0.2.0"
 wdk-alloc = "0.2.0"
 wdk-build = "0.2.0"
 wdk-panic = "0.2.0"
 wdk-sys = "0.2.0"
+windows-sys = "0.52.0"
+
+# per-package panic,lto attributes are not supported yet
+# https://doc.rust-lang.org/cargo/reference/profiles.html#overrides
+
+[profile.dev]
+lto = "off"
+panic = "abort"
+incremental = true
+
+[profile.release]
+lto = false
+panic = "abort"
+incremental = false
