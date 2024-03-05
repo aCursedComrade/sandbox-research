@@ -1,3 +1,2 @@
 target/
-.cargo-make*/
-DriverCertificate.cer
+*_package/
