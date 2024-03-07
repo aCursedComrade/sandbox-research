@@ -9,3 +9,9 @@ license.workspace = true
 
 [dependencies]
 windows-sys.workspace = true
+tonic.workspace = true
+prost.workspace = true
+tokio.workspace = true
+
+[build-dependencies]
+tonic-build.workspace = true
