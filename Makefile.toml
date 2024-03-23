@@ -1,20 +1,5 @@
-extend = "target/rust-driver-makefile.toml"
-
-[env]
-CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
-
 [config]
 default_to_workspace = false
-load_script = '''
-#!@rust
-//! ```cargo
-//! [dependencies]
-//! wdk-build = "0.2.0"
-//! ```
-#![allow(unused_doc_comments)]
-
-wdk_build::cargo_make::load_rust_driver_makefile()?
-'''
 
 [tasks.frontend]
 description = "Builds the `frontend` crate"
@@ -25,25 +10,6 @@ args = ["build", "-p", "frontend"]
 description = "Builds the `service` crate"
 command = "cargo"
 args = ["build", "-p", "service"]
-
-[tasks.driver]
-# wdk needs to look through all crates in the workspace to see if its driver.
-# driver is detected by having [package.metadata.wdk] section being present in
-# the Cargo.toml of the crate containing the driver.
-workspace = true
-description = "Builds the driver(s) in the workspace"
-# "package-driver-flow" is defined in `wdk-build` crate
-dependencies = ["package-driver-flow"]
-condition = { env = { "CARGO_MAKE_CRATE_FS_NAME" = "driver" } }
-command = "xcopy"
-# FIXME: source path given below is hardcoded to `debug`
-# need to set it dynamically based on current build profile
-args = [
-    "/y",
-    "/i",
-    "${CARGO_MAKE_CRATE_CUSTOM_TRIPLE_TARGET_DIRECTORY}\\debug\\${CARGO_MAKE_CRATE_FS_NAME}_package",
-    "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}\\driver_package"
-]
 
 [tasks.default]
 # Dont do anything in the default task
