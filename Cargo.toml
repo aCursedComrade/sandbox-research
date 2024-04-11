@@ -1,22 +1,29 @@
-[workspace]
-resolver = "2"
-members = ["frontend", "service"]
-
-[workspace.package]
+[package]
+name = "sandbox-research"
+version = "0.0.1"
+description = "An experiment on application sandboxing on Windows"
 edition = "2021"
 publish = false
 repository = "https://github.com/aCursedComrade/sandbox-research"
 license = "MIT"
 
-[workspace.dependencies]
-windows-sys = "0.52"
-tonic = "0.11"
-tonic-build = "0.11"
-prost = "0.12"
+[lib]
+crate-type = ["rlib"]
 
-[workspace.dependencies.tokio]
+[dependencies]
+windows-sys = "0.52"
+eframe = "0.26.2"
+tonic = "0.11"
+prost = "0.12"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+
+[dependencies.tokio]
 version = "1.35.1"
 features = ["macros", "rt-multi-thread"]
+
+[build-dependencies]
+tonic-build = "0.11"
 
 [profile.dev]
 lto = false

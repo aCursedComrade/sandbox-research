@@ -1,24 +1,24 @@
-use std::net::SocketAddr;
-
-use tonic::{transport::Server, Request, Response, Status};
-
-use sample_service::exchange_server::{Exchange, ExchangeServer};
-use sample_service::{EchoReply, EchoRequest};
-
-pub(crate) mod sample_service {
+mod ipc_srv {
     tonic::include_proto!("ipc_interface");
 }
 
-#[derive(Debug, Default)]
+use std::net::SocketAddr;
+use tonic::{transport::Server, Request, Response, Status};
+
+use ipc_srv::exchange_server::{Exchange, ExchangeServer};
+use ipc_srv::{EchoReply, EchoRequest};
+
+#[derive(Default)]
 pub struct Service {}
 
 #[tonic::async_trait]
 impl Exchange for Service {
     async fn echo(&self, request: Request<EchoRequest>) -> Result<Response<EchoReply>, Status> {
-        println!("[*] Got a request: {:?}", request);
+        let message = request.into_inner();
+        println!("[*] Got a request: {:?}", &message);
 
-        let response = sample_service::EchoReply {
-            message: format!("Hello, you sent me: {}", request.into_inner().payload),
+        let response = ipc_srv::EchoReply {
+            message: format!("Hello, you sent me: {}", message.payload),
         };
 
         Ok(Response::new(response))
