@@ -1,15 +1,15 @@
-mod ipc_srv {
-    tonic::include_proto!("ipc_interface");
-}
-
 mod app;
 mod comms;
+mod widgets;
 
 use app::Frontend;
 use eframe::egui::vec2;
 
 fn main() -> eframe::Result<()> {
     tracing_subscriber::fmt::init();
+
+    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let _guard = rt.enter();
 
     let options = eframe::NativeOptions {
         viewport: eframe::egui::ViewportBuilder {
@@ -23,7 +23,7 @@ fn main() -> eframe::Result<()> {
     };
 
     eframe::run_native(
-        "The Box",
+        sandbox_research::APP_NAME,
         options,
         Box::new(|cc| Box::new(Frontend::new(cc))),
     )

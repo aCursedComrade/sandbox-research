@@ -2705,6 +2705,7 @@ version = "0.0.1"
 dependencies = [
  "eframe",
  "prost",
+ "rand",
  "tokio",
  "tonic",
  "tonic-build",

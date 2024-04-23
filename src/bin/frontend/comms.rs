@@ -1,37 +1,51 @@
-use crate::ipc_srv::{exchange_client::ExchangeClient, EchoRequest};
-use sandbox_research::FailStatus;
-use std::{process::Termination, sync::mpsc::Sender};
+use sandbox_research::{
+    ipc_srv::{ipc_wire_client::IpcWireClient, EchoRequest},
+    Status,
+};
+use std::sync::mpsc::Sender;
 use tokio::runtime::Runtime;
 use tonic::{transport::Channel, Request};
 
-pub enum PipeMsg {
+#[derive(Debug, Clone)]
+/// Represents types of messages sent
+/// through channels across threads.
+pub enum QueueMsg {
+    Spawn,
     Echo(String),
-    Fail(FailStatus),
+    Fail(Status),
 }
 
-async fn connect() -> Result<ExchangeClient<Channel>, ()> {
-    match ExchangeClient::connect("http://[::1]:50055").await {
+async fn connect() -> Result<IpcWireClient<Channel>, ()> {
+    match IpcWireClient::connect("http://[::1]:50055").await {
         Ok(client) => Ok(client),
         Err(error) => {
-            tracing::error!("[!] Cannot connect to server: {}", error);
+            tracing::error!("Cannot connect to server: {}", error);
             Err(())
         }
     }
 }
 
-pub fn echo(rt: &Runtime, sender: Sender<PipeMsg>, data: EchoRequest) {
+/// `Echo` procedure (Testing only)
+pub fn echo(sender: Sender<QueueMsg>, data: EchoRequest) {
     let request = Request::new(data);
-    let mut msg = PipeMsg::Fail(FailStatus::ConnectionFailed);
+    let mut msg = QueueMsg::Fail(Status::ConnectionFailed);
 
-    rt.spawn(async move {
+    tokio::spawn(async move {
         if let Ok(mut client) = connect().await {
             let response = client.echo(request).await;
             msg = match response {
-                Ok(data) => PipeMsg::Echo(data.into_inner().message),
-                Err(_) => PipeMsg::Fail(FailStatus::ResponseError),
+                Ok(data) => QueueMsg::Echo(data.into_inner().message),
+                Err(_) => QueueMsg::Fail(Status::ResponseError),
             }
         }
 
-        sender.send(msg).report();
+        if let Err(error) = sender.send(msg) {
+            tracing::error!("Failed to send through channel: {}", error);
+        }
     });
+}
+
+/// `Spawn` procedure
+pub fn spawn(rt: &Runtime, sender: Sender<QueueMsg>, data: String) {
+    todo!()
 }
