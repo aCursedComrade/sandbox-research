@@ -1,6 +1,6 @@
 use sandbox_research::ipc_srv::{
     ipc_wire_server::{IpcWire, IpcWireServer},
-    EchoRequest, EchoResponse, SpawnRequest, SpawnResponse,
+    EchoRequest, EchoResponse, SpawnRequest, SpawnResponse, StopRequest, StopResponse,
 };
 use std::net::SocketAddr;
 use tonic::{transport::Server, Request, Response, Status};
@@ -12,20 +12,40 @@ pub struct Service {}
 impl IpcWire for Service {
     async fn echo(&self, request: Request<EchoRequest>) -> Result<Response<EchoResponse>, Status> {
         let req = request.into_inner();
-        println!("[*] Got a request: {:?}", &req);
+        tracing::info!("Got an echo message: {:?}", &req.payload);
 
-        let message = EchoResponse {
-            message: format!("Hello, you sent me: {}", req.payload),
-        };
+        let message = EchoResponse { message: req.payload };
 
         Ok(Response::new(message))
     }
 
     async fn spawn(&self, request: Request<SpawnRequest>) -> Result<Response<SpawnResponse>, Status> {
         let req = request.into_inner();
-        tracing::info!("Got a spawn request: {:?}", &req);
 
-        let message = SpawnResponse { pid: 0 };
+        // TODO process spawn logic goes here
+        if let Some(profile) = req.profile {
+            tracing::info!("Got a spawn request for: {:?}", &profile.name);
+            let message = SpawnResponse {
+                error: false,
+                id: profile.id,
+                pid: 69,
+            };
+            Ok(Response::new(message))
+        } else {
+            tracing::warn!("Invalid spawn request: {:?}", &req.profile);
+            Err(Status::invalid_argument("Missing Profile data"))
+        }
+    }
+
+    async fn stop(&self, request: Request<StopRequest>) -> Result<Response<StopResponse>, Status> {
+        let req = request.into_inner();
+        tracing::info!("Got a stop request: {:?}", &req.id);
+
+        // TODO process stop logic goes here
+        let message = StopResponse {
+            error: false,
+            id: req.id,
+        };
 
         Ok(Response::new(message))
     }
@@ -33,6 +53,8 @@ impl IpcWire for Service {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt::init();
+
     let addr: SocketAddr = "[::1]:50055".parse()?;
     let service = Service::default();
 

@@ -1,3 +1,6 @@
+#[cfg(not(target_os = "windows"))]
+compile_error!("This project only targets the Windows platform");
+
 mod profile;
 mod status;
 pub mod ipc_srv {
@@ -11,3 +14,13 @@ use std::collections::HashMap;
 pub const APP_NAME: &str = "The Box";
 
 pub type ProfileList = HashMap<u32, Profile>;
+
+pub trait ProfileListUtils {
+    fn add_profile(&mut self, profile: Profile);
+}
+
+impl ProfileListUtils for ProfileList {
+    fn add_profile(&mut self, profile: Profile) {
+        self.insert(profile.id, profile);
+    }
+}

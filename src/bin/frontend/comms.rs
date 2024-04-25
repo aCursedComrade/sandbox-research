@@ -1,16 +1,24 @@
 use sandbox_research::{
-    ipc_srv::{ipc_wire_client::IpcWireClient, EchoRequest},
-    Status,
+    ipc_srv::{ipc_wire_client::IpcWireClient, EchoRequest, SpawnRequest, StopRequest},
+    Profile, Status,
 };
 use std::sync::mpsc::Sender;
-use tokio::runtime::Runtime;
 use tonic::{transport::Channel, Request};
 
 #[derive(Debug, Clone)]
 /// Represents types of messages sent
 /// through channels across threads.
 pub enum QueueMsg {
-    Spawn,
+    Spawn {
+        error: bool,
+        id: u32,
+        pid: u32,
+    },
+    Stop {
+        error: bool,
+        id: u32,
+    },
+    #[cfg(debug_assertions)]
     Echo(String),
     Fail(Status),
 }
@@ -25,9 +33,10 @@ async fn connect() -> Result<IpcWireClient<Channel>, ()> {
     }
 }
 
+#[cfg(debug_assertions)]
 /// `Echo` procedure (Testing only)
-pub fn echo(sender: Sender<QueueMsg>, data: EchoRequest) {
-    let request = Request::new(data);
+pub fn echo<S: Into<String>>(sender: Sender<QueueMsg>, payload: S) {
+    let request = Request::new(EchoRequest { payload: payload.into() });
     let mut msg = QueueMsg::Fail(Status::ConnectionFailed);
 
     tokio::spawn(async move {
@@ -46,6 +55,56 @@ pub fn echo(sender: Sender<QueueMsg>, data: EchoRequest) {
 }
 
 /// `Spawn` procedure
-pub fn spawn(rt: &Runtime, sender: Sender<QueueMsg>, data: String) {
-    todo!()
+pub fn spawn(sender: Sender<QueueMsg>, profile: Profile) {
+    let request = Request::new(SpawnRequest {
+        profile: Some(profile.into()),
+    });
+    let mut msg = QueueMsg::Fail(Status::ConnectionFailed);
+
+    tokio::spawn(async move {
+        if let Ok(mut client) = connect().await {
+            let response = client.spawn(request).await;
+            msg = match response {
+                Ok(data) => {
+                    let res = data.into_inner();
+                    QueueMsg::Spawn {
+                        error: res.error,
+                        id: res.id,
+                        pid: res.pid,
+                    }
+                }
+                Err(_) => QueueMsg::Fail(Status::ResponseError),
+            }
+        }
+
+        if let Err(error) = sender.send(msg) {
+            tracing::error!("Failed to send through channel: {}", error);
+        }
+    });
+}
+
+/// `Stop` procedure
+pub fn stop(sender: Sender<QueueMsg>, id: u32) {
+    let request = Request::new(StopRequest { id });
+    let mut msg = QueueMsg::Fail(Status::ConnectionFailed);
+
+    tokio::spawn(async move {
+        if let Ok(mut client) = connect().await {
+            let response = client.stop(request).await;
+            msg = match response {
+                Ok(data) => {
+                    let res = data.into_inner();
+                    QueueMsg::Stop {
+                        error: res.error,
+                        id: res.id,
+                    }
+                }
+                Err(_) => QueueMsg::Fail(Status::ResponseError),
+            }
+        }
+
+        if let Err(error) = sender.send(msg) {
+            tracing::error!("Failed to send through channel: {}", error);
+        }
+    });
 }

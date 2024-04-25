@@ -3,13 +3,14 @@ use crate::{
     widgets,
 };
 use eframe::egui;
-use rand::Rng;
-use sandbox_research::{ipc_srv::EchoRequest, Profile, ProfileList, Status};
+use sandbox_research::{Profile, ProfileList, ProfileListUtils, Status};
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 
 /// `Frontend` applicaton state.
 pub struct Frontend {
+    #[cfg(debug_assertions)]
     cycle: u32,
+    #[cfg(debug_assertions)]
     message: Option<String>,
 
     /// Last error message
@@ -41,20 +42,25 @@ pub struct Frontend {
 impl Frontend {
     pub fn new(_cc: &eframe::CreationContext) -> Self {
         let (comm_tx, comm_rx) = channel();
+
+        #[cfg(not(debug_assertions))]
+        let profiles = ProfileList::default();
+
+        #[cfg(debug_assertions)]
         let mut profiles = ProfileList::default();
 
-        // TODO test configuration management and remove the following
-        profiles.insert(
-            rand::thread_rng().gen(),
-            Profile::new(
-                "Testing profile",
-                "This profile is used for testing",
-                "powershell.exe -noprofile",
-            ),
-        );
+        // Always insert a testing profile on debug build
+        #[cfg(debug_assertions)]
+        profiles.add_profile(Profile::new(
+            "Powershell",
+            "This profile is used for testing",
+            "powershell.exe -noprofile",
+        ));
 
         Self {
+            #[cfg(debug_assertions)]
             cycle: 0,
+            #[cfg(debug_assertions)]
             message: None,
             error: None,
             comm_tx,
@@ -70,12 +76,51 @@ impl Frontend {
         }
     }
 
-    fn list_menu(ui: &mut egui::Ui) {
-        let _ = ui.button("Item 01");
-        let _ = ui.button("Item 02");
-
-        if ui.button("Close").clicked() {
-            ui.close_menu();
+    /// Polls for data and changes state
+    fn poll_data(&mut self) {
+        match self.comm_rx.try_recv() {
+            #[cfg(debug_assertions)]
+            Ok(QueueMsg::Echo(data)) => {
+                self.message = Some(data);
+            }
+            Ok(QueueMsg::Fail(error)) => {
+                self.error = Some(error);
+                self.show_error = true;
+            }
+            Ok(QueueMsg::Spawn { error, id, pid }) => {
+                if let Some(profile) = self.profiles.get_mut(&id) {
+                    if error {
+                        let _ = self
+                            .comm_tx
+                            .send(QueueMsg::Fail(Status::ProcessSpawnFailed(profile.name.clone())));
+                    } else {
+                        profile.pid = pid;
+                        profile.is_running = true;
+                    }
+                } else {
+                    let _ = self.comm_tx.send(QueueMsg::Fail(Status::NoSuchProfile(id)));
+                }
+            }
+            Ok(QueueMsg::Stop { error, id }) => {
+                if let Some(profile) = self.profiles.get_mut(&id) {
+                    if error {
+                        let _ = self
+                            .comm_tx
+                            .send(QueueMsg::Fail(Status::ProcessStopFailed(profile.name.clone())));
+                    } else {
+                        profile.pid = 0;
+                        profile.is_running = false;
+                    }
+                } else {
+                    let _ = self.comm_tx.send(QueueMsg::Fail(Status::NoSuchProfile(id)));
+                }
+            }
+            Err(error) => match error {
+                TryRecvError::Empty => (),
+                TryRecvError::Disconnected => {
+                    tracing::error!("comm_tx has been disconnected");
+                }
+            },
         }
     }
 
@@ -137,9 +182,11 @@ impl Frontend {
             );
 
             if state_btn.clicked() {
-                let id = self.editing_profile.unwrap_or_else(|| rand::thread_rng().gen());
+                if let Some(id) = self.editing_profile {
+                    self.profile_buffer.id = id;
+                }
 
-                self.profiles.insert(id, self.profile_buffer.clone());
+                self.profiles.add_profile(self.profile_buffer.clone());
 
                 self.show_profile = false;
                 self.editing_profile = None;
@@ -148,52 +195,74 @@ impl Frontend {
         });
     }
 
+    /// Profile card (inside [`profile_list`](Frontend::profile_list))
+    fn profile_card(&mut self, ui: &mut egui::Ui, item: (u32, Profile)) {
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.heading(&item.1.name);
+                ui.horizontal(|ui| {
+                    // start/stop buttons
+                    if item.1.is_running {
+                        if ui.button("Kill").clicked() {
+                            comms::stop(self.comm_tx.clone(), item.0);
+                        };
+                    } else if ui.button("Start").clicked() {
+                        comms::spawn(self.comm_tx.clone(), item.1.clone());
+                    }
+                    // edit button
+                    if ui.button("Edit").clicked() {
+                        self.editing_profile = Some(item.0);
+                        self.profile_buffer = item.1.clone();
+                        self.show_profile = true;
+                    };
+                    // delete button
+                    if ui.button("Delete").clicked() {
+                        self.deleting_profile = Some(item.0);
+                    }
+                });
+            });
+            ui.add_space(16.);
+            ui.vertical(|ui| {
+                ui.label(&item.1.description);
+                ui.label(format!("PID: {}", &item.1.pid));
+            });
+        });
+    }
+
+    /// Profile deletion section (inside [`profile_list`](Frontend::profile_list))
+    fn profile_delete(&mut self, ui: &mut egui::Ui, item: (u32, Profile)) {
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.label("Are you sure?");
+                ui.horizontal(|ui| {
+                    if ui.button("Yes, delete the profile").clicked() {
+                        self.do_delete = Some(item.0);
+                    };
+                    if ui.button("No, go back").clicked() {
+                        self.deleting_profile = None;
+                    }
+                });
+            });
+            ui.add_space(16.);
+            ui.vertical(|ui| {
+                ui.label(&item.1.name);
+                ui.label(&item.1.description);
+            });
+        });
+    }
+
     /// Section to render the list of active profiles
     fn profile_list(&mut self, ui: &mut egui::Ui) {
         let to_yeet = self.deleting_profile.unwrap_or_default();
+        let list = self.profiles.clone();
 
         egui::ScrollArea::vertical().show(ui, |ui| {
-            for profile in &self.profiles {
-                ui.horizontal_top(|ui| {
-                    if *profile.0 == to_yeet {
-                        ui.vertical(|ui| {
-                            ui.label("Are you sure?");
-                            ui.horizontal(|ui| {
-                                if ui.button("Yes, delete the profile").clicked() {
-                                    self.do_delete = Some(to_yeet);
-                                };
-                                if ui.button("No, go back").clicked() {
-                                    self.deleting_profile = None;
-                                }
-                            });
-                        });
-                        ui.add_space(16.);
-                        ui.vertical(|ui| {
-                            ui.label(&profile.1.name);
-                            ui.label(&profile.1.description);
-                        });
-                    } else {
-                        ui.vertical(|ui| {
-                            ui.heading(&profile.1.name);
-                            ui.horizontal(|ui| {
-                                let _ = ui.button("Start");
-                                if ui.button("Edit").clicked() {
-                                    self.editing_profile = Some(*profile.0);
-                                    self.profile_buffer = profile.1.clone();
-                                    self.show_profile = true;
-                                };
-                                if ui.button("Delete").clicked() {
-                                    self.deleting_profile = Some(*profile.0);
-                                }
-                            });
-                        });
-                        ui.add_space(16.);
-                        ui.vertical(|ui| {
-                            ui.label(&profile.1.description);
-                            ui.label(format!("PID: {}", &profile.1.pid));
-                        });
-                    }
-                });
+            for item in list {
+                if item.0 == to_yeet {
+                    self.profile_delete(ui, item);
+                } else {
+                    self.profile_card(ui, item);
+                }
                 ui.separator();
             }
         });
@@ -203,22 +272,7 @@ impl Frontend {
 impl eframe::App for Frontend {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         {
-            match self.comm_rx.try_recv() {
-                Ok(QueueMsg::Echo(data)) => {
-                    self.message = Some(data);
-                }
-                Ok(QueueMsg::Fail(error)) => {
-                    self.error = Some(error);
-                    self.show_error = true;
-                }
-                Err(error) => match error {
-                    TryRecvError::Empty => (),
-                    TryRecvError::Disconnected => {
-                        tracing::error!("comm_tx has been disconnected");
-                    }
-                },
-                _ => (),
-            }
+            self.poll_data();
         }
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
@@ -226,7 +280,6 @@ impl eframe::App for Frontend {
             ui.spacing_mut().button_padding = egui::vec2(6., 4.);
 
             ui.horizontal(|ui| {
-                ui.menu_button("File", Self::list_menu);
                 if ui.button("Settings").clicked() {
                     self.show_settings = true;
                 };
@@ -241,34 +294,34 @@ impl eframe::App for Frontend {
             });
         });
 
-        egui::TopBottomPanel::bottom("bottom_panel").min_height(128.).show(ctx, |ui| {
-            ui.spacing_mut().item_spacing = egui::vec2(4., 8.);
-            ui.spacing_mut().button_padding = egui::vec2(6., 4.);
+        #[cfg(debug_assertions)]
+        egui::TopBottomPanel::bottom("bottom_panel").min_height(256.).show(ctx, |ui| {
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    if ui.button("Test server").clicked() {
+                        comms::echo(self.comm_tx.clone(), format!("Useless number: {}", &self.cycle));
+                        self.cycle += 2;
+                    };
 
-            ui.horizontal(|ui| {
-                if ui.button("Request stuff").clicked() {
-                    comms::echo(
-                        self.comm_tx.clone(),
-                        EchoRequest {
-                            payload: self.cycle.clone().to_string(),
-                        },
-                    );
-                    self.cycle += 2;
-                };
+                    if ui.button("Clear fields").clicked() {
+                        self.cycle = 0;
+                        self.message = None;
+                    }
 
-                if ui.button("Clear stuff").clicked() {
-                    self.cycle = 0;
-                    self.message = None;
-                }
+                    ui.label(format!("Count: {}", &self.cycle));
+                    ui.label(format!("Last message: {}", {
+                        if let Some(message) = &self.message {
+                            message
+                        } else {
+                            "No messages yet"
+                        }
+                    }));
+                });
 
-                ui.label(format!("Count: {}", &self.cycle))
+                ui.separator();
+
+                ui.label(format!("Active profiles: {:#?}", &self.profiles));
             });
-
-            if let Some(message) = &self.message {
-                ui.label(message);
-            } else {
-                ui.label("No messages yet");
-            }
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -289,11 +342,11 @@ impl eframe::App for Frontend {
         }
 
         widgets::settings_dialogue(ctx, &mut self.show_settings);
-        widgets::error_dialogue(ctx, &mut self.show_error, self.error);
+        widgets::error_dialogue(ctx, &mut self.show_error, self.error.clone());
 
         // HACK helps to update the ui even when theres no interaction
         // should experiment with other design patterns if possible to extract
-        // the state updating block from this function so we dont have to repaint
-        ctx.request_repaint_after(tokio::time::Duration::from_millis(128));
+        // the state updating function from this block so we dont have to repaint manually
+        ctx.request_repaint_after(tokio::time::Duration::from_millis(256));
     }
 }

@@ -4,23 +4,36 @@ package ipc_interface;
 service IpcWire {
     rpc Echo (EchoRequest) returns (EchoResponse);
     rpc Spawn (SpawnRequest) returns (SpawnResponse);
+    rpc Stop (StopRequest) returns (StopResponse);
 }
 
-// Represents a BoxProfile
+// Represents a Profile on the wire
 message ProfileData {
-    string name = 1;
-    string description = 2;
-    string command = 3;
-    uint32 pid = 4;
+    uint32 id = 1;
+    string name = 2;
+    string description = 3;
+    string command = 4;
+    bool is_running = 5;
+    uint32 pid = 6;
 }
 
 message SpawnRequest {
     ProfileData profile = 1;
-    string flags = 2;
 }
 
 message SpawnResponse {
-    uint32 pid = 1;
+    bool error = 1;
+    uint32 id = 2;
+    uint32 pid = 3;
+}
+
+message StopRequest {
+    uint32 id = 1;
+}
+
+message StopResponse {
+    bool error = 1;
+    uint32 id = 2;
 }
 
 message EchoRequest {
