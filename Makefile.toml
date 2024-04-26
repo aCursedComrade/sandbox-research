@@ -1,18 +1,24 @@
 [config]
-default_to_workspace = false
+
+[env.development]
+RUST_LOG = "info"
+
+# default available tasks not defined here:
+# - print-env-flow
+# - build-release
+# - build
+# - clean
+# - test
 
 [tasks.frontend]
-description = "Builds the `frontend` crate"
+description = "Executes the `frontend` binary"
 command = "cargo"
-args = ["build", "-p", "frontend"]
+args = ["run", "--bin", "frontend"]
 
 [tasks.service]
-description = "Builds the `service` crate"
+description = "Executes the `service` binary"
 command = "cargo"
-args = ["build", "-p", "service"]
+args = ["run", "--bin", "service"]
 
 [tasks.default]
-# Dont do anything in the default task
-clear = true
-command = "cmd"
-args = ["/c", "echo No default tasks is defined, look at Makefile.toml for available tasks"]
+dependencies = ["build"]
