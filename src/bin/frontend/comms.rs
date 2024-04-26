@@ -1,5 +1,7 @@
+#[cfg(debug_assertions)]
+use sandbox_research::ipc_srv::EchoRequest;
 use sandbox_research::{
-    ipc_srv::{ipc_wire_client::IpcWireClient, EchoRequest, SpawnRequest, StopRequest},
+    ipc_srv::{ipc_wire_client::IpcWireClient, SpawnRequest, StopRequest},
     Profile, Status,
 };
 use std::sync::mpsc::Sender;

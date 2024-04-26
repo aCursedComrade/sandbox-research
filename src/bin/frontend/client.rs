@@ -271,9 +271,7 @@ impl Frontend {
 
 impl eframe::App for Frontend {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        {
-            self.poll_data();
-        }
+        self.poll_data();
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             ui.spacing_mut().item_spacing = egui::vec2(4., 8.);
@@ -299,8 +297,8 @@ impl eframe::App for Frontend {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.horizontal(|ui| {
                     if ui.button("Test server").clicked() {
-                        comms::echo(self.comm_tx.clone(), format!("Useless number: {}", &self.cycle));
                         self.cycle += 2;
+                        comms::echo(self.comm_tx.clone(), format!("Useless number: {}", &self.cycle));
                     };
 
                     if ui.button("Clear fields").clicked() {

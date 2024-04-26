@@ -1,8 +1,8 @@
-mod app;
+mod client;
 mod comms;
 mod widgets;
 
-use app::Frontend;
+use client::Frontend;
 use eframe::egui::vec2;
 
 fn main() -> eframe::Result<()> {
