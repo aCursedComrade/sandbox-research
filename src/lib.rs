@@ -9,18 +9,5 @@ pub mod ipc_srv {
 
 pub use profile::Profile;
 pub use status::Status;
-use std::collections::HashMap;
 
 pub const APP_NAME: &str = "The Box";
-
-pub type ProfileList = HashMap<u32, Profile>;
-
-pub trait ProfileListUtils {
-    fn add_profile(&mut self, profile: Profile);
-}
-
-impl ProfileListUtils for ProfileList {
-    fn add_profile(&mut self, profile: Profile) {
-        self.insert(profile.id, profile);
-    }
-}

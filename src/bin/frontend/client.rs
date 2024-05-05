@@ -1,9 +1,10 @@
 use crate::{
     comms::{self, QueueMsg},
+    state::{ListUtils, ProfileList},
     widgets,
 };
 use eframe::egui;
-use sandbox_research::{Profile, ProfileList, ProfileListUtils, Status};
+use sandbox_research::{Profile, Status};
 use std::sync::mpsc::{channel, Receiver, Sender, TryRecvError};
 
 /// `Frontend` applicaton state.
@@ -54,7 +55,7 @@ impl Frontend {
         profiles.add_profile(Profile::new(
             "Powershell",
             "This profile is used for testing",
-            "powershell.exe -noprofile",
+            "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -noprofile",
         ));
 
         Self {

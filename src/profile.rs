@@ -1,6 +1,5 @@
-use rand::Rng;
-
 use crate::ipc_srv::ProfileData;
+use rand::Rng;
 use std::fmt::{Debug, Display};
 
 #[derive(Debug, Clone)]
