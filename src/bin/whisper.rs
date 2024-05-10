@@ -16,22 +16,19 @@ const DEVICE_NAME: *const u8 = s!("\\\\.\\BoxDrv");
 #[repr(C)]
 #[derive(Default, Debug)]
 struct BoxDrvState {
+    /// List of PIDs to watch
     watchlist: [usize; 32],
     reg_flt: u32,
     fs_flt: u32,
 }
 
 fn main() {
-    println!("[*] This binary is used to test the interaction with the driver");
-    #[allow(unused_assignments)]
-    let mut h_device: isize = -1;
-    let mut state = BoxDrvState::default();
-
-    state.watchlist[0] = 69420;
-    println!("[*] Init state: {:?}", state);
+    let args: Vec<_> = std::env::args().collect();
 
     unsafe {
-        h_device = CreateFileA(
+        println!("[*] This binary is used to test the interaction with the driver");
+
+        let h_device = CreateFileA(
             DEVICE_NAME,
             GENERIC_READ | GENERIC_WRITE,
             0,
@@ -45,15 +42,28 @@ fn main() {
             println!("[!] Failed to open a handle to device, is the driver running?");
             return;
         }
-    }
 
-    complete_run(h_device, &mut state);
+        if let Some(action) = args.get(1) {
+            if action == "test" {
+                complete_run(h_device);
+            } else if action == "read" {
+                read_list(h_device);
+            } else if action == "write" {
+                if let Some(pid) = args.get(2) {
+                    write_list(h_device, pid.parse::<usize>().unwrap());
+                } else {
+                    println!("[!] Missing target PID");
+                }
+            } else {
+                println!("[!] Nope 2x");
+            }
+        } else {
+            println!("[!] Nope");
+        }
 
-    unsafe {
         CloseHandle(h_device);
+        println!("[*] Done");
     }
-
-    println!("[*] Done");
 }
 
 fn echo(h_device: isize) {
@@ -92,7 +102,7 @@ fn echo(h_device: isize) {
     }
 }
 
-fn read_list(h_device: isize, state: &mut BoxDrvState) {
+fn read_list(h_device: isize) {
     let mut out_buf = BoxDrvState::default();
     let mut out_size: u32 = 0;
 
@@ -117,15 +127,10 @@ fn read_list(h_device: isize, state: &mut BoxDrvState) {
 
         println!("[+] Bytes received: {}", out_size);
         println!("[+] Buffer: {:?}", out_buf);
-        if out_buf.watchlist == state.watchlist {
-            println!("[*] ReadList IOCTL succeeded!");
-        } else {
-            println!("[!] ReadList IOCTL failed, states do not match");
-        }
     }
 }
 
-fn write_list(h_device: isize, state: &mut BoxDrvState) {
+fn write_list(h_device: isize, pid: usize) {
     let mut out_size: u32 = 0;
 
     unsafe {
@@ -134,8 +139,8 @@ fn write_list(h_device: isize, state: &mut BoxDrvState) {
         let status = DeviceIoControl(
             h_device,
             BOXDRV_IO_WRITELIST,
-            state.watchlist.as_ptr() as *const c_void,
-            std::mem::size_of_val(&state.watchlist) as u32,
+            &pid as *const _ as *const c_void,
+            std::mem::size_of::<usize>() as u32,
             std::ptr::null_mut(),
             0,
             &mut out_size,
@@ -148,26 +153,12 @@ fn write_list(h_device: isize, state: &mut BoxDrvState) {
         }
 
         println!("[+] Bytes written: {}", out_size);
-        if out_size == std::mem::size_of_val(&state.watchlist) as u32 {
-            println!("[+] WriteList IOCTL succeeded!");
-        } else {
-            println!("[!] WirteList IOCTL failed, written bytes size does not match state size");
-        }
     }
 }
 
-fn complete_run(h_device: isize, state: &mut BoxDrvState) {
+fn complete_run(h_device: isize) {
     echo(h_device);
-
-    read_list(h_device, state);
-
-    for i in 0..state.watchlist.len() {
-        state.watchlist[i] = i + 420 + (i * 2);
-    }
-
-    println!("[*] Global state changed: {:?}", state);
-
-    write_list(h_device, state);
-
-    read_list(h_device, state);
+    read_list(h_device);
+    write_list(h_device, 9999);
+    read_list(h_device);
 }
