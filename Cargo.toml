@@ -6,14 +6,17 @@ members = [
 
 [workspace.dependencies]
 minhook = "0.5.0"
+rev-toolkit = { git = "https://github.com/aCursedComrade/rev-toolkit.git" }
 windows-sys = { version = "0.52", features = [
     "Win32_Foundation",
     "Win32_Security",
     "Win32_Storage",
     "Win32_System",
+    "Win32_System_Memory",
     "Win32_System_Console",
+    "Win32_Storage_FileSystem",
     "Win32_System_LibraryLoader",
-    "Win32_Storage_FileSystem"
+    "Win32_System_Diagnostics_Debug",
 ]}
 
 [package]
@@ -29,6 +32,7 @@ license = "MIT"
 
 [dependencies]
 windows-sys.workspace = true
+rev-toolkit.workspace = true
 eframe = "0.26.2"
 tonic = "0.11"
 prost = "0.12"

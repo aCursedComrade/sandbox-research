@@ -1,29 +1,57 @@
 use crate::state::Managed;
-use sandbox_research::Profile;
-use std::{mem::zeroed, ptr};
-use windows_sys::Win32::System::Threading::{CreateProcessA, TerminateProcess, PROCESS_INFORMATION, STARTUPINFOA};
+use sandbox_research::{inject::inject, Profile};
+use std::{iter, mem::zeroed, ptr};
+use windows_sys::Win32::{
+    Foundation::GetLastError,
+    System::Threading::{
+        CreateProcessW, ResumeThread, TerminateProcess, CREATE_NEW_CONSOLE, CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT,
+        PROCESS_INFORMATION, STARTUPINFOW,
+    },
+};
 
 pub fn spawn(profile: Profile) -> Result<Managed, ()> {
     let mut conf = profile.clone();
-    let mut cmd = conf.command.trim().to_owned() + "\0";
+    let mut cmd = conf.command.encode_utf16().chain(iter::once(0)).collect::<Vec<u16>>();
 
     unsafe {
-        let si = zeroed::<STARTUPINFOA>();
+        let si = zeroed::<STARTUPINFOW>();
         let mut pi = zeroed::<PROCESS_INFORMATION>();
 
-        if CreateProcessA(
-            ptr::null(),      // lpapplicationname
-            cmd.as_mut_ptr(), // lpcmdline
-            ptr::null(),      // lpprocessattributes
-            ptr::null(),      // lpthreadattributes
-            0,                // binherithandle
-            0,                // dwcreationflags
-            ptr::null(),      // lpenvironment
-            ptr::null(),      // lpcurrentdirectory
-            &si,              // lpstartupinfo
-            &mut pi,          // lpprocessinfo
+        if CreateProcessW(
+            ptr::null(),                                                        // lpapplicationname
+            cmd.as_mut_ptr(),                                                   // lpcmdline
+            ptr::null(),                                                        // lpprocessattributes
+            ptr::null(),                                                        // lpthreadattributes
+            0,                                                                  // binherithandle
+            CREATE_NEW_CONSOLE | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED, // dwcreationflags
+            ptr::null(),                                                        // lpenvironment
+            ptr::null(),                                                        // lpcurrentdirectory
+            &si as *const STARTUPINFOW,                                         // lpstartupinfo
+            &mut pi,                                                            // lpprocessinfo
         ) == 0
         {
+            tracing::error!("Failed to spawn new process: {}", GetLastError());
+            return Err(());
+        }
+
+        // inject the DLL while it is suspended
+        if let Err(error) = inject(pi.hProcess, "utils/hooked.dll") {
+            tracing::error!("Failed to inject the DLL to the child process: {}", error);
+            stop(pi.hProcess);
+            return Err(());
+        }
+
+        // sends the PID over to driver
+        if !sandbox_research::ioctl::write_list(pi.dwProcessId as usize) {
+            tracing::error!("Failed to update driver state, terminating child");
+            stop(pi.hProcess);
+            return Err(());
+        }
+
+        // resume the process
+        if ResumeThread(pi.hThread) == u32::MAX {
+            tracing::error!("Failed to resume the child process: {}", GetLastError());
+            stop(pi.hProcess);
             return Err(());
         }
 

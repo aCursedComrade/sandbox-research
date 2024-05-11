@@ -52,7 +52,7 @@ fn replace_path(path: String) -> String {
             let mut new = user.clone();
             new.push_str("\\Documents\\BoxedData");
             out = out.replace(&user, &new);
-            println!("{} -> {}", path, out);
+            println!(">> {} -> {}", path, out);
         }
     }
 

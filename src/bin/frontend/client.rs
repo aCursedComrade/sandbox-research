@@ -137,18 +137,23 @@ impl Frontend {
             } else {
                 ui.heading("Add a new profile");
             }
+
             ui.horizontal(|ui| {
                 ui.label("Name:");
                 ui.text_edit_singleline(&mut self.profile_buffer.name);
             });
+
             ui.horizontal(|ui| {
                 ui.label("Description:");
                 ui.text_edit_multiline(&mut self.profile_buffer.description);
             });
+
             ui.horizontal(|ui| {
                 ui.label("Command:");
                 ui.text_edit_singleline(&mut self.profile_buffer.command);
             });
+            ui.label("You need to specify the absolute path to the application surrounded with quotes with any arguements you prefer.");
+            ui.label("For an example: \"C:\\app.exe\" --arg1 val1 --arg2 \"value 02\"");
 
             if !errors.is_empty() {
                 ui.separator();

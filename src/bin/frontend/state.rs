@@ -10,6 +10,7 @@ pub(crate) trait ListUtils {
 
 impl ListUtils for ProfileList {
     fn add_profile(&mut self, profile: Profile) {
-        self.insert(profile.id, profile);
+        let index = self.len() + 1;
+        self.insert(index as u32, profile);
     }
 }

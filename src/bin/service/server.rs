@@ -5,16 +5,27 @@ use crate::{
 use sandbox_research::ipc_srv::{
     ipc_wire_server::IpcWire, EchoRequest, EchoResponse, SpawnRequest, SpawnResponse, StopRequest, StopResponse,
 };
-use std::sync::{Arc, Mutex};
+use std::{
+    ffi::c_void,
+    sync::{Arc, Mutex},
+};
 use tonic::{Request, Response, Status};
+use windows_sys::Win32::Foundation::BOOL;
 
 #[derive(Default)]
 pub struct Service {
     managed: Arc<Mutex<ManagedList>>,
 }
 
+impl Service {
+    pub extern "system" fn _process_wait_callback(_pid_ref: *const c_void, _fired: BOOL) {
+        todo!()
+    }
+}
+
 #[tonic::async_trait]
 impl IpcWire for Service {
+    /// Server test routine
     async fn echo(&self, request: Request<EchoRequest>) -> Result<Response<EchoResponse>, Status> {
         let req = request.into_inner();
         tracing::info!("Got an echo message: {:?}", &req.payload);
@@ -24,6 +35,7 @@ impl IpcWire for Service {
         Ok(Response::new(message))
     }
 
+    /// Process spawn routine
     async fn spawn(&self, request: Request<SpawnRequest>) -> Result<Response<SpawnResponse>, Status> {
         let req = request.into_inner();
         let mut list = self.managed.lock().unwrap();
@@ -35,14 +47,16 @@ impl IpcWire for Service {
             let mut message = SpawnResponse { error: true, id, pid: 0 };
 
             if let Ok(profile) = proc::spawn(profile.clone().into()) {
+                // TODO WMI callback should be registered here for process termination
+
                 message.error = false;
                 message.id = profile.conf.id;
                 message.pid = profile.conf.pid;
-                list.add_profile(profile);
 
-                tracing::info!("Active profiles: {:?}", self.managed);
+                tracing::info!("Process spawned successfully!: {:?}", profile);
+                list.add_profile(profile);
             } else {
-                tracing::warn!("Failed to spawn process: {:?}", profile);
+                tracing::error!("Failed to spawn process: {:?}", profile);
             };
 
             Ok(Response::new(message))
@@ -52,22 +66,22 @@ impl IpcWire for Service {
         }
     }
 
+    /// Process stop routine
     async fn stop(&self, request: Request<StopRequest>) -> Result<Response<StopResponse>, Status> {
         let req = request.into_inner();
         let mut list = self.managed.lock().unwrap();
         tracing::info!("Got a stop request: {:?}", &req.id);
 
         let id = req.id;
-        let mut message = StopResponse { error: true, id: 0 };
+        let mut message = StopResponse { error: false, id };
 
         if let Some(conf) = list.get(&id) {
             if !proc::stop(conf.h_process) {
-                tracing::warn!("Failed to terminate process: {} (ID: {})", &conf.conf.pid, &conf.conf.id);
-                return Ok(Response::new(message));
+                tracing::warn!("Failed to terminate process: {}", &conf.conf.pid);
+                message.error = true;
+                message.id = 0;
             }
 
-            message.error = false;
-            message.id = id;
             list.remove(&id);
             Ok(Response::new(message))
         } else {

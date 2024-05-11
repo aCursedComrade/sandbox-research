@@ -19,7 +19,9 @@ extern "system" fn DllMain(dll_main: HMODULE, call_reason: u32, _: *mut ()) -> B
     unsafe {
         match call_reason {
             1 => {
-                init();
+                std::thread::spawn(|| {
+                    init();
+                });
             }
             0 => {
                 FreeLibraryAndExitThread(dll_main, 0);

@@ -1,6 +1,6 @@
 use sandbox_research::Profile;
 use std::collections::HashMap;
-use windows_sys::Win32::Foundation::CloseHandle;
+use windows_sys::Win32::{Foundation::CloseHandle, System::Threading::UnregisterWait};
 
 #[derive(Debug, Clone)]
 /// Profile with states associated to it
@@ -11,6 +11,8 @@ pub(crate) struct Managed {
     pub h_process: isize,
     /// Handle to the main thread of the process
     h_thread: isize,
+    /// WMI wait handle
+    pub wait_handle: isize,
 }
 
 impl Managed {
@@ -19,6 +21,7 @@ impl Managed {
             conf,
             h_process,
             h_thread,
+            wait_handle: 0,
         }
     }
 }
@@ -26,6 +29,9 @@ impl Managed {
 impl Drop for Managed {
     fn drop(&mut self) {
         unsafe {
+            if self.wait_handle != 0 {
+                UnregisterWait(self.wait_handle);
+            }
             CloseHandle(self.h_thread);
             CloseHandle(self.h_process);
         }

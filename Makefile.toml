@@ -11,11 +11,13 @@ RUST_LOG = "info"
 # - test
 
 [tasks.frontend]
+workspace = false
 description = "Executes the `frontend` binary"
 command = "cargo"
 args = ["run", "--bin", "frontend"]
 
 [tasks.service]
+workspace = false
 description = "Executes the `service` binary"
 command = "cargo"
 args = ["run", "--bin", "service"]
