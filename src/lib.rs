@@ -1,6 +1,7 @@
 #[cfg(not(target_os = "windows"))]
 compile_error!("This project only targets the Windows platform");
 
+pub mod ioctl;
 mod profile;
 mod status;
 pub mod ipc_srv {

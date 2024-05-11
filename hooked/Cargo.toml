@@ -1,0 +1,15 @@
+[package]
+name = "hooked"
+version = "0.0.1"
+description = "Hooking library"
+edition = "2021"
+publish = false
+repository = "https://github.com/aCursedComrade/sandbox-research"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+windows-sys.workspace = true
+minhook.workspace = true
