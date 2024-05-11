@@ -52,3 +52,13 @@ lto = false
 
 [profile.release]
 lto = true
+
+[[bin]]
+name = "box_ui"
+test = false
+bench = false
+
+[[bin]]
+name = "box_broker"
+test = false
+bench = false

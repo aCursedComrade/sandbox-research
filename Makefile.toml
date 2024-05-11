@@ -14,13 +14,13 @@ RUST_LOG = "info"
 workspace = false
 description = "Executes the `frontend` binary"
 command = "cargo"
-args = ["run", "--bin", "frontend"]
+args = ["run", "--bin", "boxui"]
 
 [tasks.service]
 workspace = false
 description = "Executes the `service` binary"
 command = "cargo"
-args = ["run", "--bin", "service"]
+args = ["run", "--bin", "boxbroker"]
 
 [tasks.default]
 dependencies = ["build"]
