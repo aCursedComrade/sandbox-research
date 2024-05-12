@@ -10,17 +10,17 @@ RUST_LOG = "info"
 # - clean
 # - test
 
-[tasks.frontend]
+[tasks.box_ui]
 workspace = false
 description = "Executes the `frontend` binary"
 command = "cargo"
-args = ["run", "--bin", "boxui"]
+args = ["run", "--bin", "box_ui"]
 
-[tasks.service]
+[tasks.box_broker]
 workspace = false
 description = "Executes the `service` binary"
 command = "cargo"
-args = ["run", "--bin", "boxbroker"]
+args = ["run", "--bin", "box_broker"]
 
 [tasks.default]
 dependencies = ["build"]
