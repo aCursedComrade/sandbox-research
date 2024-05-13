@@ -6,6 +6,8 @@ members = [
 
 [workspace.dependencies]
 minhook = "0.5.0"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 rev-toolkit = { git = "https://github.com/aCursedComrade/rev-toolkit.git" }
 windows-sys = { version = "0.52", features = [
     "Win32_Foundation",
@@ -31,13 +33,13 @@ license = "MIT"
 [lib]
 
 [dependencies]
+tracing.workspace = true
+tracing-subscriber.workspace = true
 windows-sys.workspace = true
 rev-toolkit.workspace = true
 eframe = "0.26.2"
 tonic = "0.11"
 prost = "0.12"
-tracing = "0.1.40"
-tracing-subscriber = "0.3.18"
 rand = "0.8.5"
 
 [dependencies.tokio]

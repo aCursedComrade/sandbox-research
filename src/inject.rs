@@ -1,4 +1,4 @@
-use rev_toolkit::RTStatus;
+use rev_toolkit::{utils::resolve_file, RTStatus};
 use std::{ffi::CString, mem::size_of};
 use windows_sys::{
     s, w,
@@ -17,7 +17,9 @@ use windows_sys::{
 // TODO maybe try integrating both in the future
 
 pub fn inject(handle: isize, dll_path: &str) -> Result<(), RTStatus> {
-    let path = unsafe { CString::from_vec_unchecked(dll_path.as_bytes().to_vec()) };
+    let dll_path = resolve_file(dll_path)?;
+
+    let path = unsafe { CString::from_vec_unchecked(dll_path.0.as_bytes().to_vec()) };
     let proc_address = unsafe { GetProcAddress(GetModuleHandleW(w!("Kernel32")), s!("LoadLibraryA")) };
 
     let buffer = unsafe {
@@ -29,12 +31,11 @@ pub fn inject(handle: isize, dll_path: &str) -> Result<(), RTStatus> {
             PAGE_READWRITE,
         )
     };
-
     if buffer.is_null() {
         return Err(RTStatus::MemoryAllocError);
     }
 
-    let _ = unsafe {
+    let status = unsafe {
         WriteProcessMemory(
             handle,
             buffer,
@@ -43,6 +44,9 @@ pub fn inject(handle: isize, dll_path: &str) -> Result<(), RTStatus> {
             std::ptr::null_mut(),
         )
     };
+    if status == 0 {
+        return Err(RTStatus::MemoryWriteError);
+    }
 
     let thread = unsafe {
         CreateRemoteThread(
@@ -55,6 +59,9 @@ pub fn inject(handle: isize, dll_path: &str) -> Result<(), RTStatus> {
             std::ptr::null_mut(),
         )
     };
+    if thread == -1 {
+        return Err(RTStatus::SpawnThreadError);
+    }
 
     unsafe {
         WaitForSingleObject(thread, u32::MAX);

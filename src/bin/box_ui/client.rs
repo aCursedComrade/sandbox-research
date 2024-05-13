@@ -53,6 +53,7 @@ impl Frontend {
         // Always insert a testing profile on debug build
         #[cfg(debug_assertions)]
         profiles.add_profile(Profile::new(
+            1,
             "Powershell",
             "This profile is used for testing",
             "\"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" -noprofile",
@@ -105,9 +106,13 @@ impl Frontend {
             Ok(QueueMsg::Stop { error, id }) => {
                 if let Some(profile) = self.profiles.get_mut(&id) {
                     if error {
-                        let _ = self
-                            .comm_tx
-                            .send(QueueMsg::Fail(Status::ProcessStopFailed(profile.name.clone())));
+                        // TODO we arent properly tracking process termination yet
+                        // let _ = self
+                        //     .comm_tx
+                        //     .send(QueueMsg::Fail(Status::ProcessStopFailed(profile.name.clone())));
+                        profile.pid = 0;
+                        profile.is_running = false;
+                        tracing::warn!("Unimplemented process stop routing fired");
                     } else {
                         profile.pid = 0;
                         profile.is_running = false;
@@ -136,6 +141,7 @@ impl Frontend {
                 });
             } else {
                 ui.heading("Add a new profile");
+                self.profile_buffer.id = (self.profiles.len() + 1usize) as u32;
             }
 
             ui.horizontal(|ui| {
@@ -210,7 +216,7 @@ impl Frontend {
                     // start/stop buttons
                     if item.1.is_running {
                         if ui.button("Kill").clicked() {
-                            comms::stop(self.comm_tx.clone(), item.0);
+                            comms::stop(self.comm_tx.clone(), item.1.id);
                         };
                     } else if ui.button("Start").clicked() {
                         comms::spawn(self.comm_tx.clone(), item.1.clone());

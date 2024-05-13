@@ -26,9 +26,7 @@ pub enum ValidationError {
 }
 
 impl Profile {
-    pub fn new<S: Into<String>>(name: S, description: S, command: S) -> Self {
-        let id: u32 = rand::thread_rng().gen();
-
+    pub fn new<S: Into<String>>(id: u32, name: S, description: S, command: S) -> Self {
         Self {
             id,
             name: name.into(),

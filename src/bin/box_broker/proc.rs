@@ -4,8 +4,7 @@ use std::{iter, mem::zeroed, ptr};
 use windows_sys::Win32::{
     Foundation::GetLastError,
     System::Threading::{
-        CreateProcessW, ResumeThread, TerminateProcess, CREATE_NEW_CONSOLE, CREATE_SUSPENDED, CREATE_UNICODE_ENVIRONMENT,
-        PROCESS_INFORMATION, STARTUPINFOW,
+        CreateProcessW, ResumeThread, TerminateProcess, CREATE_NEW_CONSOLE, CREATE_SUSPENDED, PROCESS_INFORMATION, STARTUPINFOW,
     },
 };
 
@@ -18,16 +17,16 @@ pub fn spawn(profile: Profile) -> Result<Managed, ()> {
         let mut pi = zeroed::<PROCESS_INFORMATION>();
 
         if CreateProcessW(
-            ptr::null(),                                                        // lpapplicationname
-            cmd.as_mut_ptr(),                                                   // lpcmdline
-            ptr::null(),                                                        // lpprocessattributes
-            ptr::null(),                                                        // lpthreadattributes
-            0,                                                                  // binherithandle
-            CREATE_NEW_CONSOLE | CREATE_UNICODE_ENVIRONMENT | CREATE_SUSPENDED, // dwcreationflags
-            ptr::null(),                                                        // lpenvironment
-            ptr::null(),                                                        // lpcurrentdirectory
-            &si as *const STARTUPINFOW,                                         // lpstartupinfo
-            &mut pi,                                                            // lpprocessinfo
+            ptr::null(),                           // lpapplicationname
+            cmd.as_mut_ptr(),                      // lpcmdline
+            ptr::null(),                           // lpprocessattributes
+            ptr::null(),                           // lpthreadattributes
+            0,                                     // binherithandle
+            CREATE_NEW_CONSOLE | CREATE_SUSPENDED, // dwcreationflags
+            ptr::null(),                           // lpenvironment
+            ptr::null(),                           // lpcurrentdirectory
+            &si as *const STARTUPINFOW,            // lpstartupinfo
+            &mut pi,                               // lpprocessinfo
         ) == 0
         {
             tracing::error!("Failed to spawn new process: {}", GetLastError());
@@ -35,13 +34,21 @@ pub fn spawn(profile: Profile) -> Result<Managed, ()> {
         }
 
         // inject the DLL while it is suspended
-        if let Err(error) = inject(pi.hProcess, "utils/hooked.dll") {
+        #[cfg(debug_assertions)]
+        let path = format!(
+            "{}\\debug\\hooked.dll",
+            std::env::var("CARGO_MAKE_CRATE_CUSTOM_TRIPLE_TARGET_DIRECTORY").unwrap()
+        ); // works only when used with cargo-make
+        #[cfg(not(debug_assertions))]
+        let path = "utils\\hooked.dll".to_string();
+        if let Err(error) = inject(pi.hProcess, &path) {
             tracing::error!("Failed to inject the DLL to the child process: {}", error);
             stop(pi.hProcess);
             return Err(());
         }
 
         // sends the PID over to driver
+        #[cfg(not(debug_assertions))]
         if !sandbox_research::ioctl::write_list(pi.dwProcessId as usize) {
             tracing::error!("Failed to update driver state, terminating child");
             stop(pi.hProcess);

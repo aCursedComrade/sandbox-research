@@ -11,5 +11,9 @@ license = "MIT"
 crate-type = ["cdylib"]
 
 [dependencies]
+tracing.workspace = true
+tracing-subscriber.workspace = true
+rev-toolkit.workspace = true
 windows-sys.workspace = true
 minhook.workspace = true
+sandbox-research = { path = "../" }

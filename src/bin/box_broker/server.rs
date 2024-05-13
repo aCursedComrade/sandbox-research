@@ -79,7 +79,6 @@ impl IpcWire for Service {
             if !proc::stop(conf.h_process) {
                 tracing::warn!("Failed to terminate process: {}", &conf.conf.pid);
                 message.error = true;
-                message.id = 0;
             }
 
             list.remove(&id);

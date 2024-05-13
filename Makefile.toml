@@ -22,5 +22,11 @@ description = "Executes the `service` binary"
 command = "cargo"
 args = ["run", "--bin", "box_broker"]
 
+[tasks.hooked]
+workspace = false
+description = "Builds hooked.dll"
+command = "cargo"
+args = ["build", "-p", "hooked"]
+
 [tasks.default]
 dependencies = ["build"]

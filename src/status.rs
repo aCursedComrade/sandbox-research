@@ -17,7 +17,7 @@ impl Display for Status {
         match self {
             Self::ProcessSpawnFailed(name) => write!(f, "Failed to spawn process: {}", name),
             Self::ProcessStopFailed(name) => write!(f, "Failed to stop process: {}", name),
-            Self::NoSuchProfile(id) => write!(f, "No such profile exist (internal ID: {}", id),
+            Self::NoSuchProfile(id) => write!(f, "No such profile exist (internal ID: {})", id),
             Self::ConnectionFailed => write!(f, "Failed to connect to server"),
             Self::ResponseError => write!(f, "Server replied with error"),
             Self::ThreadError => write!(f, "Thread panicked"),

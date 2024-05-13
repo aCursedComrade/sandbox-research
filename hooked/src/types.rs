@@ -1,6 +1,6 @@
 use std::{ffi::c_void, os::windows::raw::HANDLE};
 use windows_sys::{
-    core::PCWSTR,
+    core::{PCWSTR, PWSTR},
     Win32::{
         Foundation::BOOL,
         Security::SECURITY_ATTRIBUTES,
@@ -8,8 +8,22 @@ use windows_sys::{
             FILE_CREATION_DISPOSITION, FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_MODE, FINDEX_INFO_LEVELS, FINDEX_SEARCH_OPS,
             FIND_FIRST_EX_FLAGS, GET_FILEEX_INFO_LEVELS, WIN32_FIND_DATAW,
         },
+        System::Threading::{PROCESS_CREATION_FLAGS, PROCESS_INFORMATION, STARTUPINFOW},
     },
 };
+
+pub type CreateProcessW = unsafe extern "system" fn(
+    lpapplicationname: PCWSTR,
+    lpcommandline: PWSTR,
+    lpprocessattributes: *const SECURITY_ATTRIBUTES,
+    lpthreadattributes: *const SECURITY_ATTRIBUTES,
+    binherithandles: BOOL,
+    dwcreationflags: PROCESS_CREATION_FLAGS,
+    lpenvironment: *const c_void,
+    lpcurrentdirectory: PCWSTR,
+    lpstartupinfo: *const STARTUPINFOW,
+    lpprocessinformation: *mut PROCESS_INFORMATION,
+) -> BOOL;
 
 pub type CreateFileW = unsafe extern "system" fn(
     PCWSTR,

@@ -1,13 +1,15 @@
 #![allow(non_snake_case)]
 use crate::types;
 use minhook::{MinHook, MH_STATUS};
+use sandbox_research::inject::inject;
 use std::{
     ffi::{c_void, CString},
     iter,
+    mem::zeroed,
     os::windows::raw::HANDLE,
 };
 use windows_sys::{
-    core::PCWSTR,
+    core::{PCWSTR, PWSTR},
     Win32::{
         Foundation::{BOOL, MAX_PATH},
         Security::SECURITY_ATTRIBUTES,
@@ -15,7 +17,10 @@ use windows_sys::{
             FILE_CREATION_DISPOSITION, FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_MODE, FINDEX_INFO_LEVELS, FINDEX_SEARCH_OPS,
             FIND_FIRST_EX_FLAGS, GET_FILEEX_INFO_LEVELS, WIN32_FIND_DATAW,
         },
-        System::LibraryLoader::{GetModuleHandleW, GetProcAddress},
+        System::{
+            LibraryLoader::{GetModuleFileNameW, GetModuleHandleW, GetProcAddress},
+            Threading::{ResumeThread, CREATE_SUSPENDED, PROCESS_CREATION_FLAGS, PROCESS_INFORMATION, STARTUPINFOW},
+        },
     },
 };
 
@@ -44,6 +49,7 @@ fn decode_u16(buffer: *const u16) -> String {
 
 // Replaces (and essentially redirects) given path strings
 fn replace_path(path: String) -> String {
+    let path = path.replace('/', "\\");
     let uservar = std::env::var("USERPROFILE");
     let mut out = path.clone();
 
@@ -52,9 +58,7 @@ fn replace_path(path: String) -> String {
             let mut new = user.clone();
             new.push_str("\\Documents\\BoxedData");
             out = out.replace(&user, &new);
-            
-            #[cfg(debug_assertions)]
-            println!(">> {} -> {}", path, out);
+            tracing::info!("Rerouted: {}", out);
         }
     }
 
@@ -62,6 +66,11 @@ fn replace_path(path: String) -> String {
 }
 
 pub unsafe fn install_hooks() -> Result<(), MH_STATUS> {
+    let og_address = get_symbol_address("kernel32.dll", "CreateProcessW").unwrap();
+    let ret_addr = MinHook::create_hook(og_address as _, CreateProcessW as _);
+    let og_func: types::CreateProcessW = std::mem::transmute(ret_addr.unwrap());
+    FN_CREATEPROCESSW = Some(og_func);
+
     let og_address = get_symbol_address("kernel32.dll", "CreateFileW").unwrap();
     let ret_addr = MinHook::create_hook(og_address as _, CreateFileW as _);
     let og_func: types::CreateFileW = std::mem::transmute(ret_addr.unwrap());
@@ -110,6 +119,7 @@ pub unsafe fn install_hooks() -> Result<(), MH_STATUS> {
     MinHook::enable_all_hooks()
 }
 
+static mut FN_CREATEPROCESSW: Option<types::CreateProcessW> = None;
 static mut FN_CREATEFILEW: Option<types::CreateFileW> = None;
 static mut FN_CREATEDIRECTORYW: Option<types::CreateDirectoryW> = None;
 static mut FN_DELETEFILEW: Option<types::DeleteFileW> = None;
@@ -119,6 +129,72 @@ static mut FN_GETFILEATTRIBUTESEXW: Option<types::GetFileAttributesExW> = None;
 static mut FN_SETFILEATTRIBUTESW: Option<types::SetFileAttributesW> = None;
 static mut FN_FINDFIRSTFILEW: Option<types::FindFirstFileW> = None;
 static mut FN_FINDFIRSTFILEEXW: Option<types::FindFirstFileExW> = None;
+
+unsafe extern "system" fn CreateProcessW(
+    lpapplicationname: PCWSTR,
+    lpcommandline: PWSTR,
+    lpprocessattributes: *const SECURITY_ATTRIBUTES,
+    lpthreadattributes: *const SECURITY_ATTRIBUTES,
+    binherithandles: BOOL,
+    dwcreationflags: PROCESS_CREATION_FLAGS,
+    lpenvironment: *const c_void,
+    lpcurrentdirectory: PCWSTR,
+    lpstartupinfo: *const STARTUPINFOW,
+    lpprocessinformation: *mut PROCESS_INFORMATION,
+) -> BOOL {
+    let cmd = decode_u16(lpcommandline as *const u16);
+    let mut proc_info = zeroed::<PROCESS_INFORMATION>();
+    let new_flags = dwcreationflags | CREATE_SUSPENDED; // attempt to add the SUSPENDED flag
+
+    tracing::info!("Attempting to spawn: {}", cmd);
+
+    // call the original function to populate handles and create the process
+    let og_func = FN_CREATEPROCESSW.unwrap();
+    let spawn_status = og_func(
+        lpapplicationname,
+        lpcommandline,
+        lpprocessattributes,
+        lpthreadattributes,
+        binherithandles,
+        new_flags,
+        lpenvironment,
+        lpcurrentdirectory,
+        lpstartupinfo,
+        &mut proc_info,
+    );
+
+    if spawn_status == 0 {
+        tracing::error!("Failed to spawn the process");
+        *lpprocessinformation = proc_info;
+        return spawn_status;
+    }
+
+    // get the full path to us (DLL)
+    let mut path = vec![0u16; 256];
+    let status = GetModuleFileNameW(crate::M_HANDLE, path.as_mut_ptr(), path.len() as u32);
+    if status == 0 {
+        tracing::error!("Failed to get the module file name (buffer too small)");
+        ResumeThread(proc_info.hThread);
+        *lpprocessinformation = proc_info;
+        return spawn_status;
+    };
+
+    // attempt to inject ourself to the new process
+    let path = decode_u16(path.as_ptr());
+    tracing::info!("DLL path: {}", path);
+    let status = inject(proc_info.hProcess, &path);
+    if let Err(error) = status {
+        tracing::error!("Failed to inject DLL to the new process: {}", error);
+        ResumeThread(proc_info.hThread);
+        *lpprocessinformation = proc_info;
+        return spawn_status;
+    }
+
+    // resume the thread and return
+    ResumeThread(proc_info.hThread);
+    *lpprocessinformation = proc_info;
+    spawn_status
+}
 
 unsafe extern "system" fn CreateFileW(
     name: PCWSTR,
@@ -131,6 +207,7 @@ unsafe extern "system" fn CreateFileW(
 ) -> HANDLE {
     let path = replace_path(decode_u16(name));
     let name = path.encode_utf16().chain(iter::once(0)).collect::<Vec<u16>>();
+    tracing::info!("CreateFileW: {}", path);
 
     let og_func = FN_CREATEFILEW.unwrap();
     og_func(name.as_ptr(), access, sharemode, attrs, disposition, flags, template)
@@ -139,6 +216,7 @@ unsafe extern "system" fn CreateFileW(
 unsafe extern "system" fn CreateDirectoryW(name: PCWSTR, attrs: *const SECURITY_ATTRIBUTES) -> BOOL {
     let path = replace_path(decode_u16(name));
     let name = path.encode_utf16().chain(iter::once(0)).collect::<Vec<u16>>();
+    tracing::info!("CreateDirectoryW: {}", path);
 
     let og_func = FN_CREATEDIRECTORYW.unwrap();
     og_func(name.as_ptr(), attrs)
@@ -147,6 +225,7 @@ unsafe extern "system" fn CreateDirectoryW(name: PCWSTR, attrs: *const SECURITY_
 unsafe extern "system" fn DeleteFileW(name: PCWSTR) -> BOOL {
     let path = replace_path(decode_u16(name));
     let name = path.encode_utf16().chain(iter::once(0)).collect::<Vec<u16>>();
+    tracing::info!("DeleteFileW: {}", path);
 
     let og_func = FN_DELETEFILEW.unwrap();
     og_func(name.as_ptr())
@@ -155,6 +234,7 @@ unsafe extern "system" fn DeleteFileW(name: PCWSTR) -> BOOL {
 unsafe extern "system" fn RemoveDirectoryW(name: PCWSTR) -> BOOL {
     let path = replace_path(decode_u16(name));
     let name = path.encode_utf16().chain(iter::once(0)).collect::<Vec<u16>>();
+    tracing::info!("RemoveDirectoryW: {}", path);
 
     let og_func = FN_REMOVEDIRECTORYW.unwrap();
     og_func(name.as_ptr())
